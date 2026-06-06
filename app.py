@@ -1,3 +1,12 @@
+import ctypes
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)  # per-monitor DPI aware
+except Exception:
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
+
 import io
 import csv
 import json
@@ -41,21 +50,21 @@ PIL_FMT = {
     "png": "PNG", "webp": "WEBP", "bmp": "BMP", "gif": "GIF", "ico": "ICO",
 }
 EXT_FILETYPES = {
-    "txt":  [("Text files", "*.txt")],
-    "pdf":  [("PDF files", "*.pdf")],
-    "html": [("HTML files", "*.html")],
-    "json": [("JSON files", "*.json")],
-    "csv":  [("CSV files", "*.csv")],
-    "xml":  [("XML files", "*.xml")],
-    "png":  [("PNG images", "*.png")],
-    "jpg":  [("JPEG images", "*.jpg")],
-    "jpeg": [("JPEG images", "*.jpeg")],
-    "webp": [("WebP images", "*.webp")],
-    "bmp":  [("BMP images", "*.bmp")],
-    "gif":  [("GIF images", "*.gif")],
-    "tiff": [("TIFF images", "*.tiff")],
-    "ico":  [("ICO images", "*.ico")],
-    "zip":  [("ZIP files", "*.zip")],
+    "txt":  [("Text files", "*.txt"),   ("All files", "*.*")],
+    "pdf":  [("PDF files", "*.pdf"),    ("All files", "*.*")],
+    "html": [("HTML files", "*.html"),  ("All files", "*.*")],
+    "json": [("JSON files", "*.json"),  ("All files", "*.*")],
+    "csv":  [("CSV files", "*.csv"),    ("All files", "*.*")],
+    "xml":  [("XML files", "*.xml"),    ("All files", "*.*")],
+    "png":  [("PNG images", "*.png"),   ("All files", "*.*")],
+    "jpg":  [("JPEG images", "*.jpg"),  ("All files", "*.*")],
+    "jpeg": [("JPEG images", "*.jpeg"), ("All files", "*.*")],
+    "webp": [("WebP images", "*.webp"), ("All files", "*.*")],
+    "bmp":  [("BMP images", "*.bmp"),   ("All files", "*.*")],
+    "gif":  [("GIF images", "*.gif"),   ("All files", "*.*")],
+    "tiff": [("TIFF images", "*.tiff"), ("All files", "*.*")],
+    "ico":  [("ICO images", "*.ico"),   ("All files", "*.*")],
+    "zip":  [("ZIP files", "*.zip"),    ("All files", "*.*")],
 }
 
 
@@ -377,7 +386,7 @@ class App(tk.Tk):
         self._mg_lbl.grid(row=4, column=0, columnspan=3, sticky="w", pady=(10, 0))
 
     def _mg_add(self):
-        paths = filedialog.askopenfilenames(parent=self, filetypes=[("PDF files", "*.pdf")])
+        paths = filedialog.askopenfilenames(parent=self, filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")])
         for p in paths:
             self._mg_paths.append(p)
             self._mg_lb.insert(tk.END, Path(p).name)
@@ -414,7 +423,7 @@ class App(tk.Tk):
             initialfile="merged.pdf",
             initialdir=str(Path(self._mg_paths[0]).parent),
             defaultextension=".pdf",
-            filetypes=[("PDF files", "*.pdf")],
+            filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")],
         )
         if not save_path:
             return
@@ -472,7 +481,7 @@ class App(tk.Tk):
         self._tr_lbl.grid(row=4, column=0, columnspan=3, sticky="w", pady=(10, 0))
 
     def _tr_browse(self):
-        p = filedialog.askopenfilename(parent=self, filetypes=[("PDF files", "*.pdf")])
+        p = filedialog.askopenfilename(parent=self, filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")])
         if not p:
             return
         self._tr_path.set(p)
@@ -501,7 +510,7 @@ class App(tk.Tk):
             initialfile=f"{Path(path).stem}_pages_{start}-{end}.pdf",
             initialdir=str(Path(path).parent),
             defaultextension=".pdf",
-            filetypes=[("PDF files", "*.pdf")],
+            filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")],
         )
         if not save_path:
             return
@@ -555,7 +564,7 @@ class App(tk.Tk):
         self._sp_lbl.grid(row=4, column=0, columnspan=3, sticky="w", pady=(10, 0))
 
     def _sp_browse(self):
-        p = filedialog.askopenfilename(parent=self, filetypes=[("PDF files", "*.pdf")])
+        p = filedialog.askopenfilename(parent=self, filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")])
         if not p:
             return
         self._sp_path.set(p)
@@ -582,7 +591,7 @@ class App(tk.Tk):
             initialfile=f"{Path(path).stem}_split.zip",
             initialdir=str(Path(path).parent),
             defaultextension=".zip",
-            filetypes=[("ZIP files", "*.zip")],
+            filetypes=[("ZIP files", "*.zip"), ("All files", "*.*")],
         )
         if not save_path:
             return
