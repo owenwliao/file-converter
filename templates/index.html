@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>File Converter</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: monospace; max-width: 680px; margin: 50px auto; padding: 0 20px; }
+h1 { font-size: 1.4rem; margin-bottom: 4px; }
+p.sub { color: #666; font-size: 0.85rem; margin-bottom: 20px; }
+nav { margin-bottom: 24px; }
+nav button {
+  padding: 5px 14px; margin-right: 6px; cursor: pointer;
+  border: 1px solid #999; background: #fff; font-family: monospace;
+}
+nav button.active { background: #000; color: #fff; border-color: #000; }
+.tab { display: none; }
+.tab.active { display: block; }
+h2 { font-size: 1rem; margin-bottom: 12px; }
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 0.85rem; margin-bottom: 4px; color: #444; }
+.field input[type=file],
+.field select { width: 100%; padding: 5px; font-family: monospace; font-size: 0.9rem; border: 1px solid #ccc; }
+.field input[type=number] { width: 90px; padding: 5px; font-family: monospace; font-size: 0.9rem; border: 1px solid #ccc; }
+.inline { display: flex; align-items: center; gap: 8px; }
+.info { font-size: 0.8rem; color: #888; margin-top: 4px; }
+button.run {
+  padding: 6px 18px; cursor: pointer; font-family: monospace;
+  border: 1px solid #000; background: #fff;
+}
+button.run:hover { background: #000; color: #fff; }
+button.add {
+  padding: 4px 10px; cursor: pointer; font-family: monospace;
+  border: 1px solid #aaa; background: #fff; font-size: 0.85rem;
+}
+button.add:hover { background: #eee; }
+.result { margin-top: 16px; padding: 10px; border: 1px solid #ddd; min-height: 38px; font-size: 0.9rem; }
+.result.hidden { display: none; }
+.err { color: #c00; }
+a.dl { color: #00c; }
+</style>
+</head>
+<body>
+
+<h1>File Converter</h1>
+<p class="sub">Convert · Merge · Trim · Split</p>
+
+<nav>
+  <button class="active" onclick="showTab('convert')" id="btn-convert">Convert</button>
+  <button onclick="showTab('merge')" id="btn-merge">PDF Merge</button>
+  <button onclick="showTab('trim')" id="btn-trim">PDF Trim</button>
+  <button onclick="showTab('split')" id="btn-split">PDF Split</button>
+</nav>
+
+<!-- ── Convert ── -->
+<div id="tab-convert" class="tab active">
+  <h2>Convert File</h2>
+
+  <div class="field">
+    <label>File</label>
+    <input type="file" id="conv-file">
+    <div class="info" id="conv-info"></div>
+  </div>
+
+  <div class="field">
+    <label>Convert to</label>
+    <select id="conv-to"><option value="">— select a file first —</option></select>
+  </div>
+
+  <button class="run" onclick="doConvert()">Convert</button>
+  <div id="conv-result" class="result hidden"></div>
+</div>
+
+<!-- ── PDF Merge ── -->
+<div id="tab-merge" class="tab">
+  <h2>PDF Merge</h2>
+  <p class="info" style="margin-bottom:12px">Add PDFs in order — they'll be merged top to bottom.</p>
+
+  <div id="merge-list"></div>
+  <button class="add" onclick="addMergeSlot()" style="margin-bottom:16px">+ Add file</button>
+
+  <br>
+  <button class="run" onclick="doMerge()">Merge → PDF</button>
+  <div id="merge-result" class="result hidden"></div>
+</div>
+
+<!-- ── PDF Trim ── -->
+<div id="tab-trim" class="tab">
+  <h2>PDF Trimmer</h2>
+  <p class="info" style="margin-bottom:12px">Extract a page range from a PDF into a new file.</p>
+
+  <div class="field">
+    <label>PDF file</label>
+    <input type="file" id="trim-file" accept=".pdf">
+    <div class="info" id="trim-info"></div>
+  </div>
+
+  <div class="field">
+    <label>Page range</label>
+    <div class="inline">
+      <span>From</span>
+      <input type="number" id="trim-start" value="1" min="1">
+      <span>to</span>
+      <input type="number" id="trim-end" min="1" placeholder="last">
+    </div>
+  </div>
+
+  <button class="run" onclick="doTrim()">Trim</button>
+  <div id="trim-result" class="result hidden"></div>
+</div>
+
+<!-- ── PDF Split ── -->
+<div id="tab-split" class="tab">
+  <h2>PDF Splitter</h2>
+  <p class="info" style="margin-bottom:12px">Split a PDF into chunks. Downloads as a .zip file.</p>
+
+  <div class="field">
+    <label>PDF file</label>
+    <input type="file" id="split-file" accept=".pdf">
+    <div class="info" id="split-info"></div>
+  </div>
+
+  <div class="field">
+    <label>Pages per chunk</label>
+    <div class="inline">
+      <input type="number" id="split-n" value="1" min="1">
+      <span class="info">(1 = one file per page)</span>
+    </div>
+  </div>
+
+  <button class="run" onclick="doSplit()">Split → .zip</button>
+  <div id="split-result" class="result hidden"></div>
+</div>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('btn-' + name).classList.add('active');
+}
+
+function ok(id, node) {
+  const el = document.getElementById(id);
+  el.classList.remove('hidden');
+  el.innerHTML = '';
+  el.appendChild(node);
+}
+
+function err(id, msg) {
+  const el = document.getElementById(id);
+  el.classList.remove('hidden');
+  el.innerHTML = `<span class="err">Error: ${msg}</span>`;
+}
+
+function loading(id) {
+  const el = document.getElementById(id);
+  el.classList.remove('hidden');
+  el.textContent = 'Working…';
+}
+
+function dlLink(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.className = 'dl';
+  a.textContent = `Download ${filename}`;
+  setTimeout(() => URL.revokeObjectURL(url), 120000);
+  return a;
+}
+
+// ── Convert ──────────────────────────────────────────────────────────────────
+document.getElementById('conv-file').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  document.getElementById('conv-info').textContent = `.${ext}  ·  ${(file.size / 1024).toFixed(1)} KB`;
+  fetch(`/formats/${ext}`)
+    .then(r => r.json())
+    .then(fmts => {
+      const sel = document.getElementById('conv-to');
+      sel.innerHTML = '';
+      if (!fmts.length) {
+        sel.innerHTML = '<option value="">No conversions available for this type</option>';
+        return;
+      }
+      fmts.forEach(f => {
+        const o = document.createElement('option');
+        o.value = f;
+        o.textContent = `.${f}`;
+        sel.appendChild(o);
+      });
+    });
+});
+
+async function doConvert() {
+  const file = document.getElementById('conv-file').files[0];
+  const to = document.getElementById('conv-to').value;
+  if (!file) return alert('Select a file first.');
+  if (!to) return alert('Select a target format.');
+  loading('conv-result');
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('to', to);
+  const res = await fetch('/convert', { method: 'POST', body: fd });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    err('conv-result', d.error || res.statusText);
+    return;
+  }
+  const blob = await res.blob();
+  ok('conv-result', dlLink(blob, `${file.name.replace(/\.[^.]+$/, '')}.${to}`));
+}
+
+// ── Merge ─────────────────────────────────────────────────────────────────────
+let mergeCount = 0;
+
+function addMergeSlot() {
+  mergeCount++;
+  const list = document.getElementById('merge-list');
+  const div = document.createElement('div');
+  div.className = 'field';
+  div.innerHTML = `<label>File ${mergeCount}</label><input type="file" accept=".pdf" class="merge-input">`;
+  list.appendChild(div);
+}
+
+async function doMerge() {
+  const inputs = document.querySelectorAll('.merge-input');
+  const fd = new FormData();
+  let count = 0;
+  inputs.forEach(inp => {
+    if (inp.files[0]) { fd.append('files', inp.files[0]); count++; }
+  });
+  if (count < 2) return alert('Add at least 2 PDF files.');
+  loading('merge-result');
+  const res = await fetch('/pdf/merge', { method: 'POST', body: fd });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    err('merge-result', d.error || res.statusText);
+    return;
+  }
+  ok('merge-result', dlLink(await res.blob(), 'merged.pdf'));
+}
+
+// ── Trim ──────────────────────────────────────────────────────────────────────
+document.getElementById('trim-file').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  document.getElementById('trim-info').textContent = 'Reading…';
+  const fd = new FormData();
+  fd.append('file', file);
+  fetch('/pdf/info', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(d => {
+      if (d.error) { document.getElementById('trim-info').textContent = d.error; return; }
+      document.getElementById('trim-info').textContent = `${d.pages} pages`;
+      document.getElementById('trim-end').value = d.pages;
+      document.getElementById('trim-end').max = d.pages;
+      document.getElementById('trim-start').max = d.pages;
+    });
+});
+
+async function doTrim() {
+  const file = document.getElementById('trim-file').files[0];
+  if (!file) return alert('Select a PDF first.');
+  const start = document.getElementById('trim-start').value;
+  const end = document.getElementById('trim-end').value;
+  loading('trim-result');
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('start', start);
+  fd.append('end', end);
+  const res = await fetch('/pdf/trim', { method: 'POST', body: fd });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    err('trim-result', d.error || res.statusText);
+    return;
+  }
+  const stem = file.name.replace(/\.pdf$/i, '');
+  ok('trim-result', dlLink(await res.blob(), `${stem}_pages_${start}-${end || 'end'}.pdf`));
+}
+
+// ── Split ─────────────────────────────────────────────────────────────────────
+document.getElementById('split-file').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  document.getElementById('split-info').textContent = 'Reading…';
+  const fd = new FormData();
+  fd.append('file', file);
+  fetch('/pdf/info', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(d => {
+      if (d.error) { document.getElementById('split-info').textContent = d.error; return; }
+      document.getElementById('split-info').textContent = `${d.pages} pages`;
+    });
+});
+
+async function doSplit() {
+  const file = document.getElementById('split-file').files[0];
+  if (!file) return alert('Select a PDF first.');
+  const n = document.getElementById('split-n').value;
+  loading('split-result');
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('n', n);
+  const res = await fetch('/pdf/split', { method: 'POST', body: fd });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    err('split-result', d.error || res.statusText);
+    return;
+  }
+  ok('split-result', dlLink(await res.blob(), `${file.name.replace(/\.pdf$/i, '')}_split.zip`));
+}
+
+// init merge with 2 slots
+addMergeSlot();
+addMergeSlot();
+</script>
+</body>
+</html>

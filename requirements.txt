@@ -1,0 +1,9 @@
+flask
+pypdf
+Pillow
+python-docx
+Markdown
+reportlab
+ebooklib
+beautifulsoup4
+lxml
